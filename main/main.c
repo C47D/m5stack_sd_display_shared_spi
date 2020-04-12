@@ -18,12 +18,11 @@
 #include "esp_freertos_hooks.h"
 #include "freertos/semphr.h"
 
-
 #include "esp_system.h"
 #include "driver/gpio.h"
 
 /* Littlevgl specific */
-#include "lvgl/lvgl.h"
+#include "lvgl.h"
 #include "lvgl_driver.h"
 #include "lv_examples/lv_apps/demo/demo.h"
 
