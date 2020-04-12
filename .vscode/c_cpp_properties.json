@@ -86,7 +86,12 @@
                 "C:/esp/esp-idf/components/fatfs/src",
                 "C:/esp/esp-idf/components/wear_levelling/include",
                 "C:/esp/esp-idf/components/sdmmc/include",
-                "${workspaceFolder}/components/lv_port_esp32/components/lvgl/lvgl/src/lv_core"
+                "${workspaceFolder}/components/lv_port_esp32/components/lvgl/lvgl/src/lv_core",
+                "${workspaceFolder}/components/lvgl_esp32_drivers",
+                "${workspaceFolder}/components/lvgl/lvgl",
+                "${workspaceFolder}/components/lvgl",
+                "${workspaceFolder}/components/lv_examples",
+                "${workspaceFolder}/components/lvgl/lvgl/src/lv_core"
             ],
             "defines": [],
             "cStandard": "c11",
