@@ -42,7 +42,11 @@
 #define DMA_CHANNEL	2
 #define MAX_BUFSIZE	(16 * 1024)
 
+// #define TEST_SD_CARD
+
+#ifdef TEST_SD_CARD
 void test_sd_card(void);
+#endif
 
 /* Littlevgl specific */
 #include "lvgl/lvgl.h"
@@ -51,13 +55,27 @@ void test_sd_card(void);
 
 static const char *TAG = "SD-CARD";
 
+//Creates a semaphore to handle concurrent call to lvgl stuff
+//If you wish to call *any* lvgl function from other threads/tasks
+//you should lock on the very same semaphore!
+SemaphoreHandle_t xGuiSemaphore;
+
 static void IRAM_ATTR lv_tick_task(void *arg);
-void guiTask();
+
+void guiTask(void *pvParameters);
 
 void app_main() {
     /* lvgl task */
-    xTaskCreatePinnedToCore(guiTask, "gui", 4096*2, NULL, 0, NULL, 1);
+    xTaskCreatePinnedToCore((TaskFunction_t) guiTask /* pvTaskCode */,
+	"gui" /* pcName */,
+	4096 * 2 /* ulStackDepth */,
+	NULL /* pvParameters */,
+	0 /* uxPriority */,
+	NULL /* pvCreatedTask */,
+	1 /* xCoreID */
+    );
 
+#ifdef TEST_SD_CARD
     printf("Screen is working...\n");
     printf("Writing to the card in...\n");
 
@@ -70,8 +88,10 @@ void app_main() {
     test_sd_card();
     printf("SD card routine complete\n");
     printf("Screen is now frozen\n");
+#endif
 }
 
+#ifdef TEST_SD_CARD
 /* Mostly from test/test_sdio */
 void test_sd_card(void)
 {
@@ -228,6 +248,7 @@ void test_sd_card(void)
     esp_vfs_fat_sdmmc_unmount();
     ESP_LOGI(TAG, "Card unmounted");
 }
+#endif
 
 static void IRAM_ATTR lv_tick_task(void *arg) {
     (void) arg;
@@ -237,15 +258,13 @@ static void IRAM_ATTR lv_tick_task(void *arg) {
 
 void some_random_task(void)
 {
-    printf("lvgl task still ticks but screen freezes\n");
+    ESP_LOGI(TAG, "lvgl task still ticks but screen freezes\n");
 }
 
-//Creates a semaphore to handle concurrent call to lvgl stuff
-//If you wish to call *any* lvgl function from other threads/tasks
-//you should lock on the very same semaphore!
-SemaphoreHandle_t xGuiSemaphore;
+/* Task that runs the lvgl code */
+void guiTask(void *pvParameters) {
+    (void) pvParameters;
 
-void guiTask() {
     xGuiSemaphore = xSemaphoreCreateMutex();
 
     lv_init();
@@ -271,20 +290,26 @@ void guiTask() {
     lv_indev_drv_register(&indev_drv);
 #endif
 
-    const esp_timer_create_args_t periodic_timer_args = {
-            .callback = &lv_tick_task,
-            /* name is optional, but may help identify the timer when debugging */
-            .name = "periodic_gui"
-    };
+    /* PERIODIC TIMER *******************************
+     * On ESP32 it's better to create a periodic task
+     * instead of esp_register_freertos_tick_hook */
 
     esp_timer_handle_t periodic_timer;
+    const esp_timer_create_args_t periodic_timer_args = {
+            .callback = &lv_tick_task,
+            /* help identify the timer when debugging */
+            .name = "periodic_gui"
+    };
+    /* esp_timer_start_periodic expects the period in us,
+     * we want a 10ms tick */
+    const uint64_t lv_timer_period = 10 * 1000; 
+
     ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &periodic_timer));
-    //On ESP32 it's better to create a periodic task instead of esp_register_freertos_tick_hook
-    ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, 10*1000)); //10ms (expressed as microseconds)
+    ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, lv_timer_period));
 
     demo_create();
 
-    lv_task_create(some_random_task, 2000, LV_TASK_PRIO_LOWEST, NULL);
+    // lv_task_create(some_random_task, 2000, LV_TASK_PRIO_LOWEST, NULL);
 
     while (1) {
         vTaskDelay(1);
