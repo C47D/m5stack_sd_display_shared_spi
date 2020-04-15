@@ -39,10 +39,12 @@
 #define SD_CARD_CLK	18
 #define SD_CARD_CS	4
 
-#define DMA_CHANNEL	2
-#define MAX_BUFSIZE	(16 * 1024)
+#define SD_CARD_DMA_CHANNEL	1
 
-// #define TEST_SD_CARD
+#define MOUNT_POINT     "/sdcard"
+
+#define TEST_SD_CARD
+// #define TEST_LVGL
 
 #ifdef TEST_SD_CARD
 void test_sd_card(void);
@@ -65,6 +67,8 @@ static void IRAM_ATTR lv_tick_task(void *arg);
 void guiTask(void *pvParameters);
 
 void app_main() {
+
+#ifdef TEST_LVGL
     /* lvgl task */
     xTaskCreatePinnedToCore((TaskFunction_t) guiTask /* pvTaskCode */,
 	"gui" /* pcName */,
@@ -74,116 +78,46 @@ void app_main() {
 	NULL /* pvCreatedTask */,
 	1 /* xCoreID */
     );
+#endif
 
 #ifdef TEST_SD_CARD
-    printf("Screen is working...\n");
-    printf("Writing to the card in...\n");
 
-    for (size_t i = 10; i > 0; i--) {
-	printf("..%d\n", i);
-	vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-
-    printf("Writing to card\n");
-    test_sd_card();
-    printf("SD card routine complete\n");
-    printf("Screen is now frozen\n");
-#endif
-}
-
-#ifdef TEST_SD_CARD
-/* Mostly from test/test_sdio */
-void test_sd_card(void)
-{
-#if 0 /* Setting the spi bus, not needed, we do it already on lvgl */
-    spi_bus_config_t bus_cfg = {
-	.mosi_io_num = SD_CARD_MOSI,
-	.miso_io_num = SD_CARD_MISO,
-	.sclk_io_num = SD_CARD_CLK,
-	.quadwp_io_num = -1,
-	.quadhd_io_num = -1,
-	.max_transfer_sz = 4000,
-    };
-    esp_err_t spi_bus_ret = spi_bus_initialize(host.slot, &bus_cfg, SPI_DMA_CHAN);
-    if (ESP_OK != spi_bus_ret) {
-	ESP_LOGE(TAG, "Failed to initialize bus.");
-	return;
-    }
-#endif
-
-    sdspi_device_config_t device_config = SDSPI_DEVICE_CONFIG_DEFAULT();
-    device_config.host_id = /* Same as the display */;
-    device_config.gpio_cs = SD_CARD_CS;
-    device_config.gpio_int = SDSPI_SLOT_NO_INT /* Interrupt line */;
-    device_config.gpio_cd = SDSPI_SLOT_NO_CD /* Card detect line */;
-    device_config.gpio_wp = SDSPI_SLOT_NO_WP /* Write protect line  */;
-
-    esp_err_t int_err = gpio_install_isr_service(0);
-    assert(ESP_OK == int_err);
-
-#if 0
-    /* Extra configuration for SPI host
-     * NOTE: SPI Host already configured, so we don't use this */
-    sdspi_slot_config_t slot_config = SDSPI_SLOT_CONFIG_DEFAULT();
-    slot_config.gpio_miso = SD_CARD_MISO;
-    slot_config.gpio_mosi = SD_CARD_MOSI;
-    slot_config.gpio_sck = SD_CARD_CLK;
-    slot_config.gpio_cs = SD_CARD_CS;
-    slot_config.dma_channel = DMA_CHANNEL;
-#endif
-
-    /* Init the SD SPI device and attach to its bus
-     * 
-     * NOTE: Init the spi bus by spi_bus_initialize before calling this
-     * function. */
-
-    sdspi_dev_handle_t sdspi_handle;
-    /* XXX: Check we really need this */
-    sdspi_host_init();
-
-    /* TODO: Change slot config by device_config */
-    esp_err_t sdspi_host_err = sdspi_host_init_device(&device_config,
-	&sdspi_handle
-    );
-    assert(sdspi_host_err == ESP_OK);
-
-    /* Store the SD SPI device state and configurations of
-     * upper layer (SD/SDIO/MMC driver)
-     *
-     * Modify the slot parameter of the structure to the SD SPI
-     * device handle just returned from sdspi_host_init_device.
-     * Call sdmmc_card_init with the sdmmc_host_t to probe and init
-     * the SD Card. */
-    sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-    host.slot = sdspi_handle;
-
-    /* Mount configuration */
     esp_vfs_fat_sdmmc_mount_config_t mount_config = {
-	.format_if_mount_failed = false,
-	.max_files = 5,
-	.allocation_unit_size = MAX_BUFSIZE,
+        .format_if_mount_failed = false,
+        .max_files = 5,
+        .allocation_unit_size = 16 * 1024
     };
 
-    /* Use configuration and mount the file system */
-    sdmmc_card_t *card = NULL;
-    
-    /* Wait for at least 5 seconds */
-    int retry_times = 5;
-    do {
-	if (ESP_OK == sdmmc_card_init(&config, card)) {
-	    break;
-	}
+    sdmmc_card_t *card;
 
-	vTaskDelay(1000 / portTICK_PERIOD_MS);
-    } while (--retry_times);
-    
-    
-    esp_err_t ret = esp_vfs_fat_sdmmc_mount("/sdcard",
-	&host,		// Host configuration
-	&slot_config,	// Slot configuration
-	&mount_config,	// Mount configuration
-	&card		// out card
-    );
+    const char mount_point[] = MOUNT_POINT;
+
+    ESP_LOGI(TAG, "Init SPI Bus");
+
+    sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+
+    /* Shared SPI bus configuration */
+    spi_bus_config_t buscfg = {
+            .miso_io_num = SD_CARD_MISO,
+            .mosi_io_num = SD_CARD_MOSI,
+            .sclk_io_num = SD_CARD_CLK,
+            .quadwp_io_num = -1,
+            .quadhd_io_num = -1,
+            .max_transfer_sz = 4000,
+    };
+
+    esp_err_t ret = spi_bus_initialize(host.slot,
+        &buscfg, SD_CARD_DMA_CHANNEL);
+    assert(ret == ESP_OK);
+
+    // This init the slot without CD (Card Detect) and WP (Write Protect)
+
+    sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
+    slot_config.gpio_cs = SD_CARD_CS;
+    slot_config.host_id = host.slot;
+
+    ret = esp_vfs_fat_sdspi_mount(mount_point,
+        &host, &slot_config, &mount_config, &card);
 
     if (ESP_OK != ret) {
 	if (ESP_FAIL == ret) {
@@ -195,7 +129,26 @@ void test_sd_card(void)
 		esp_err_to_name(ret));
 	}
     }
+    
+    ESP_LOGI(TAG, "Screen is working...\n");
+    ESP_LOGI(TAG, "Writing to the card in...\n");
 
+    for (size_t i = 10; i > 0; i--) {
+	ESP_LOGI(TAG, "..%d\n", i);
+	vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+
+    ESP_LOGI(TAG, "Writing to card\n");
+    test_sd_card();
+    ESP_LOGI(TAG, "SD card routine complete\n");
+    ESP_LOGI(TAG, "Screen is now frozen\n");
+#endif
+}
+
+#ifdef TEST_SD_CARD
+/* Mostly from test/test_sdio */
+void test_sd_card(void)
+{
     sdmmc_card_print_info(stdout, card);
 
     ESP_LOGI(TAG, "Opening file");
