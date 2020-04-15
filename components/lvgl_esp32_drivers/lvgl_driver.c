@@ -44,6 +44,10 @@ void lvgl_driver_init(void)
 #ifdef SHARED_SPI_BUS
 	/* Configure one SPI bus for the two devices */
 	configure_shared_spi_bus();
+
+	/* SPI Devices */
+	disp_spi_add_device(TFT_SPI_HOST);
+	tp_spi_add_device(TOUCH_SPI_HOST);
     
 	/* Configure the drivers */
 	disp_driver_init(false);
@@ -87,9 +91,5 @@ static void configure_shared_spi_bus(void)
 
 	esp_err_t ret = spi_bus_initialize(TFT_SPI_HOST, &buscfg, 1);
 	assert(ret == ESP_OK);
-
-	/* SPI Devices */
-	disp_spi_add_device(TFT_SPI_HOST);
-	tp_spi_add_device(TOUCH_SPI_HOST);
 }
 #endif  // SHARED_SPI_BUS
