@@ -57,6 +57,8 @@ void test_sd_card(void);
 
 static const char *TAG = "SD-CARD";
 
+sdmmc_card_t *card;
+
 //Creates a semaphore to handle concurrent call to lvgl stuff
 //If you wish to call *any* lvgl function from other threads/tasks
 //you should lock on the very same semaphore!
@@ -88,7 +90,6 @@ void app_main() {
         .allocation_unit_size = 16 * 1024
     };
 
-    sdmmc_card_t *card;
 
     const char mount_point[] = MOUNT_POINT;
 
@@ -120,14 +121,11 @@ void app_main() {
         &host, &slot_config, &mount_config, &card);
 
     if (ESP_OK != ret) {
-	if (ESP_FAIL == ret) {
-	    ESP_LOGE(TAG, "Failed to mount filesystem. "
-		"If you want the card to be formatted, set format_if_mount_failed = true".);
-	} else {
-	    ESP_LOGE(TAG, "Failed to initialize the card (%s). "
-		"Make sure SD card lines have pull-up resistors in place",
-		esp_err_to_name(ret));
-	}
+		if (ESP_FAIL == ret) {
+			// ESP_LOGE(TAG, "Failed to mount filesystem. If you want the card to be formatted, set format_if_mount_failed = true".);
+		} else {
+			// ESP_LOGE(TAG, "Failed to initialize the card (%s). Make sure SD card lines have pull-up resistors in place", esp_err_to_name(ret));
+		}
     }
     
     ESP_LOGI(TAG, "Screen is working...\n");
