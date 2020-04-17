@@ -34,17 +34,31 @@
 #include "driver/sdspi_host.h"
 #include "sdmmc_cmd.h"
 
+/* NOTE: Choose the board you are working on */
+
+#define BOARD_WROVER_KIT_V41
+// #define BOARD_M5STACK
+
+#ifdef BOARD_WROVER_KIT_V41
+#define SD_CARD_MOSI	15
+#define SD_CARD_MISO	2
+#define SD_CARD_CLK	14
+#define SD_CARD_CS	13
+#endif
+
+#ifdef BOARD_M5STACK
 #define SD_CARD_MOSI	23
 #define SD_CARD_MISO	19
 #define SD_CARD_CLK	18
 #define SD_CARD_CS	4
+#endif
 
 #define SD_CARD_DMA_CHANNEL	1
 
 #define MOUNT_POINT     "/sdcard"
 
-#define TEST_SD_CARD
-// #define TEST_LVGL
+// #define TEST_SD_CARD
+#define TEST_LVGL
 
 #ifdef TEST_SD_CARD
 void test_sd_card(void);
