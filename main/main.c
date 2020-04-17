@@ -97,13 +97,11 @@ void app_main() {
 #endif
 
 #ifdef TEST_SD_CARD
-
     esp_vfs_fat_sdmmc_mount_config_t mount_config = {
         .format_if_mount_failed = false,
         .max_files = 5,
         .allocation_unit_size = 16 * 1024
     };
-
 
     const char mount_point[] = MOUNT_POINT;
 
@@ -111,7 +109,12 @@ void app_main() {
 
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
 
-    /* Shared SPI bus configuration */
+    /* Shared SPI bus configuration
+	 * 
+	 * NOTE: SD_CARD_MISO must be the same as the DISPLAY_MISO or -1
+	 *       SD_CARD_MOSI must be the same as DISPLAY_MOSI
+	 *       SD_CARD_SCLK must be the same as DISPLAY_SCLK
+	 */
     spi_bus_config_t buscfg = {
             .miso_io_num = SD_CARD_MISO,
             .mosi_io_num = SD_CARD_MOSI,
@@ -126,11 +129,17 @@ void app_main() {
     assert(ret == ESP_OK);
 
     // This init the slot without CD (Card Detect) and WP (Write Protect)
-
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
     slot_config.gpio_cs = SD_CARD_CS;
     slot_config.host_id = host.slot;
 
+	/* esp_vfs_fat_sdspi_mount is a convenience function that setup the FatFs and
+	 * vsf. It does:
+	 * 1. Call esp_vfs_fat_register()
+	 * 2. Call ff_diskio_register() 
+	 * 3. Call the FatFs function f_mount() and optionally f_fdisk, f_mkfs to mount
+	 *    the file system using the same driver that was passed to esp_vfs_fat_register
+	 * 4. Call POSIX API for files */
     ret = esp_vfs_fat_sdspi_mount(mount_point,
         &host, &slot_config, &mount_config, &card);
 
