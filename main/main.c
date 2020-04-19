@@ -53,12 +53,12 @@
 #define SD_CARD_CS	4
 #endif
 
-#define SD_CARD_DMA_CHANNEL	1
+#define SD_CARD_DMA_CHANNEL	2
 
 #define MOUNT_POINT     "/sdcard"
 
 #define TEST_SD_CARD
-// #define TEST_LVGL
+#define TEST_LVGL
 
 #ifdef TEST_SD_CARD
 void test_sd_card(void);
@@ -114,24 +114,24 @@ void app_main() {
     /* Wrover kit v41 have the display and sd spi pins mapped to different spi hosts */
 #if TFT_SPI_HOST == HSPI_HOST
 #pragma message "SPI for display is HSPI_HOST, for sd card is VSPI_HOST"
-    host.slot = VSPI_HOST;
+    host.slot = HSPI_HOST;
 #else
 #pragma message "SPI for display is VSPI_HOST, for sd card is HSPI_HOST"
-    host.slot = HSPI_HOST;
+    host.slot = VSPI_HOST;
 #endif
 
 #else /* M5STACK have the display and sd spi on the same spi host */
 #pragma message "M5Stack board"    
 #if TFT_SPI_HOST == HSPI_HOST
-#pragma message "SPI for display is HSPI_HOST, for sd card is VSPI_HOST"
-    host.slot = VSPI_HOST;
-#else
-#pragma message "SPI for display is VSPI_HOST, for sd card is HSPI_HOST"
+#pragma message "SPI for display is HSPI_HOST same for the sd card"
     host.slot = HSPI_HOST;
+#else
+#pragma message "SPI for display is VSPI_HOST same for the sd card"
+    host.slot = VSPI_HOST;
 #endif
 #endif
 
-    esp_err_t err;
+    esp_err_t ret = ESP_OK;
 
 /* We only init a new spi bus when working on the wrover kit because
  * the spi host is not shared between sd spi and display spi */
