@@ -57,8 +57,8 @@
 
 #define MOUNT_POINT     "/sdcard"
 
-// #define TEST_SD_CARD
-#define TEST_LVGL
+#define TEST_SD_CARD
+// #define TEST_LVGL
 
 #ifdef TEST_SD_CARD
 void test_sd_card(void);
@@ -109,6 +109,33 @@ void app_main() {
 
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
 
+#ifdef BOARD_WROVER_KIT_V41
+#pragma message "Wrover kit v4.1 board"
+    /* Wrover kit v41 have the display and sd spi pins mapped to different spi hosts */
+#if TFT_SPI_HOST == HSPI_HOST
+#pragma message "SPI for display is HSPI_HOST, for sd card is VSPI_HOST"
+    host.slot = VSPI_HOST;
+#else
+#pragma message "SPI for display is VSPI_HOST, for sd card is HSPI_HOST"
+    host.slot = HSPI_HOST;
+#endif
+
+#else /* M5STACK have the display and sd spi on the same spi host */
+#pragma message "M5Stack board"    
+#if TFT_SPI_HOST == HSPI_HOST
+#pragma message "SPI for display is HSPI_HOST, for sd card is VSPI_HOST"
+    host.slot = VSPI_HOST;
+#else
+#pragma message "SPI for display is VSPI_HOST, for sd card is HSPI_HOST"
+    host.slot = HSPI_HOST;
+#endif
+#endif
+
+    esp_err_t err;
+
+/* We only init a new spi bus when working on the wrover kit because
+ * the spi host is not shared between sd spi and display spi */
+#ifdef BOARD_WROVER_KIT_V41
     /* Shared SPI bus configuration
 	 * 
 	 * NOTE: SD_CARD_MISO must be the same as the DISPLAY_MISO or -1
@@ -121,12 +148,13 @@ void app_main() {
             .sclk_io_num = SD_CARD_CLK,
             .quadwp_io_num = -1,
             .quadhd_io_num = -1,
-            .max_transfer_sz = 4000,
+            .max_transfer_sz = DISP_BUF_SIZE,
     };
 
-    esp_err_t ret = spi_bus_initialize(host.slot,
+    ret = spi_bus_initialize(host.slot,
         &buscfg, SD_CARD_DMA_CHANNEL);
     assert(ret == ESP_OK);
+#endif
 
     // This init the slot without CD (Card Detect) and WP (Write Protect)
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
