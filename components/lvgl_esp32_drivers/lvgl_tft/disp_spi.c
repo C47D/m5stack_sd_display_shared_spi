@@ -98,7 +98,11 @@ void disp_spi_init(void)
     esp_err_t ret;
 
     spi_bus_config_t buscfg={
+#if 1 /* Set the if value to 0 on m5stack */
             .miso_io_num=-1,
+#else
+            .miso_io_num= 19,
+#endif
             .mosi_io_num=DISP_SPI_MOSI,
             .sclk_io_num=DISP_SPI_CLK,
             .quadwp_io_num=-1,
