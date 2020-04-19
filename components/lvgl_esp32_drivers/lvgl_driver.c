@@ -24,7 +24,10 @@
  *  STATIC PROTOTYPES
  **********************/
 #ifdef SHARED_SPI_BUS
+#pragma message "Sharing SPI bus on display and tft"
 static void configure_shared_spi_bus(void);
+#else
+#pragma message "Not sharing SPI bus on display and tft"
 #endif  // SHARED_SPI_BUS
 
 /**********************
